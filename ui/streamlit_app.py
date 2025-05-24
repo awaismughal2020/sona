@@ -1,5 +1,5 @@
 """
-Streamlit UI for SONA AI Assistant.
+Streamlit UI for SONA AI Assistant with proper voice processing reset.
 Provides web-based interface for text and voice interactions.
 """
 
@@ -64,6 +64,16 @@ class SONAStreamlitApp:
 
         if "available_models" not in st.session_state:
             st.session_state.available_models = {}
+
+        # Voice processing state
+        if "voice_processing" not in st.session_state:
+            st.session_state.voice_processing = False
+
+        if "last_processed_file" not in st.session_state:
+            st.session_state.last_processed_file = None
+
+        if "voice_file_key" not in st.session_state:
+            st.session_state.voice_file_key = 0
 
     def check_backend_health(self) -> bool:
         """Check if backend is healthy."""
@@ -168,8 +178,8 @@ class SONAStreamlitApp:
 
                 # Show service health
                 if st.session_state.backend_health:
-                    health_info = st.session_state.backend_health.get("services", {})
-                    if "summary" in health_info:
+                    health_info = st.session_state.backend_health.get("ai_services", {})
+                    if isinstance(health_info, dict) and "summary" in health_info:
                         summary = health_info["summary"]
                         st.info(f"Services: {summary['healthy']}/{summary['total']} healthy")
             else:
@@ -228,6 +238,21 @@ class SONAStreamlitApp:
                     }
                 ]
                 st.rerun()
+
+            # Voice processing controls
+            st.divider()
+            st.subheader("🎤 Voice Controls")
+
+            if st.button("🔄 Reset Voice Input"):
+                self._reset_voice_input()
+                st.success("Voice input reset!")
+                st.rerun()
+
+    def _reset_voice_input(self):
+        """Reset voice input state."""
+        st.session_state.voice_processing = False
+        st.session_state.last_processed_file = None
+        st.session_state.voice_file_key += 1  # This will reset the file uploader
 
     def render_main_chat(self):
         """Render main chat interface."""
@@ -297,29 +322,32 @@ class SONAStreamlitApp:
         self._render_voice_input_section()
 
     def _render_voice_input_section(self):
-        """Render voice input section with both upload and real-time recording."""
+        """Render voice input section with proper reset functionality."""
         st.markdown("Upload an audio file to interact with SONA using your voice.")
 
-        # Create tabs for different voice input methods
-        upload_tab, record_tab = st.tabs(["📁 Upload Audio", "🎙️ Record Audio"])
+        # Create columns for better layout
+        col1, col2 = st.columns([3, 1])
 
-        with upload_tab:
-            self._render_file_upload()
+        with col1:
+            # File upload with dynamic key for reset functionality
+            uploaded_file = st.file_uploader(
+                "Upload audio file",
+                type=self.settings.get_allowed_audio_formats(),
+                help="Supported formats: " + ", ".join(self.settings.get_allowed_audio_formats()),
+                key=f"audio_uploader_{st.session_state.voice_file_key}"
+            )
 
-        with record_tab:
-            self._render_real_time_recording()
+        with col2:
+            # Reset button
+            if st.button("🔄 Reset", help="Clear audio upload"):
+                self._reset_voice_input()
+                st.rerun()
 
-    def _render_file_upload(self):
-        """Render file upload interface."""
-        # File upload
-        uploaded_file = st.file_uploader(
-            "Upload audio file",
-            type=self.settings.get_allowed_audio_formats(),
-            help="Supported formats: " + ", ".join(self.settings.get_allowed_audio_formats()),
-            key="audio_uploader"
-        )
+        # Only show file info and process button if file is uploaded and not currently processing
+        if uploaded_file is not None and not st.session_state.voice_processing:
+            # Check if this is a new file
+            file_info = f"{uploaded_file.name}_{len(uploaded_file.getvalue())}"
 
-        if uploaded_file is not None:
             # Show audio file info
             st.audio(uploaded_file, format=f'audio/{uploaded_file.type.split("/")[-1]}')
 
@@ -330,75 +358,47 @@ class SONAStreamlitApp:
                 file_size = len(uploaded_file.getvalue())
                 st.info(f"📊 **Size:** {file_size / 1024:.1f} KB")
 
+            # Process button
             if st.button("🎯 Process Audio", key="process_upload_btn"):
                 self._process_audio_file(uploaded_file)
 
-    def _render_real_time_recording(self):
-        """Render real-time audio recording interface."""
-        st.markdown("### 🎙️ Real-Time Voice Recording")
+        elif st.session_state.voice_processing:
+            st.info("🔄 Processing audio... Please wait.")
 
-        # Recording controls
-        col1, col2, col3 = st.columns(3)
+        # Tips section
+        with st.expander("💡 Tips for Better Voice Recognition"):
+            st.markdown(f"""
+            **For best results:**
+            - 🎯 Speak clearly and at normal pace
+            - 🔇 Record in a quiet environment
+            - ⏱️ Keep recordings under 2 minutes
+            - 🎤 Use good quality microphone if possible
 
-        with col1:
-            if st.button("🔴 Start Recording", key="start_record"):
-                st.session_state.recording = True
-                st.success("Recording started! Speak now...")
+            **Supported formats:** {', '.join(self.settings.get_allowed_audio_formats())}
 
-        with col2:
-            if st.button("⏹️ Stop Recording", key="stop_record"):
-                if st.session_state.get('recording'):
-                    st.session_state.recording = False
-                    st.info("Recording stopped.")
+            **File size limit:** {self.settings.max_file_size // (1024 * 1024)}MB
 
-        with col3:
-            if st.button("🎯 Process Recording", key="process_record"):
-                st.info("Processing recorded audio...")
-
-        # Recording status
-        if st.session_state.get('recording'):
-            st.warning("🔴 **Recording in progress...** Speak clearly into your microphone.")
-        else:
-            st.info("💡 **Ready to record.** Click 'Start Recording' to begin.")
-
-        # Instructions
-        with st.expander("📱 Recording Instructions"):
-            st.markdown("""
-            **How to use real-time recording:**
-
-            1. **Click 'Start Recording'** - Grant microphone permission if asked
-            2. **Speak clearly** - Talk at normal pace, avoid background noise
-            3. **Click 'Stop Recording'** - When you're done speaking
-            4. **Click 'Process Recording'** - To transcribe and get AI response
-
-            **Tips for better results:**
-            - Use a quiet environment
-            - Speak directly towards your microphone
-            - Keep recordings under 30 seconds for best results
-            - Make sure your browser has microphone permissions
+            **Example commands:**
+            - "What's the weather in Islamabad?"
+            - "Generate an image of a sunset"
+            - "Tell me about cryptocurrency prices"
             """)
 
-        # Browser-based recording note
-        st.info("""
-        🚧 **Real-time recording is in development!** 
-
-        For now, you can:
-        1. Use your phone's voice recorder app
-        2. Record a message and save it
-        3. Upload the file using the 'Upload Audio' tab above
-
-        Browser-based recording will be available in the next update!
-        """)
-
     def _process_audio_file(self, uploaded_file):
-        """Process uploaded audio file."""
+        """Process uploaded audio file with proper state management."""
         try:
+            # Set processing state
+            st.session_state.voice_processing = True
+
             with st.spinner("Processing audio..."):
                 # Read audio file
                 audio_bytes = uploaded_file.read()
 
                 # Process with backend
                 response = self.upload_audio(audio_bytes, uploaded_file.name)
+
+            # Reset processing state
+            st.session_state.voice_processing = False
 
             if response and response.get("success"):
                 transcription = response.get("transcription", "")
@@ -425,6 +425,7 @@ class SONAStreamlitApp:
 
                 st.session_state.messages.append(assistant_message)
 
+                # Show success and results
                 st.success(f"**Transcription:** {transcription}")
                 st.write(f"**SONA's Response:** {response['response']}")
 
@@ -432,26 +433,27 @@ class SONAStreamlitApp:
                 if response.get("data"):
                     self._render_message_data(response["data"], response.get("response_type"))
 
-                # Small delay before rerun to show results
-                time.sleep(0.5)
+                # Store processed file info to prevent reprocessing
+                st.session_state.last_processed_file = f"{uploaded_file.name}_{len(uploaded_file.getvalue())}"
+
+                # Auto-reset after successful processing
+                st.session_state.voice_file_key += 1
+
+                # Small delay and rerun to show results and reset interface
+                time.sleep(1)
+                st.rerun()
 
             else:
+                st.session_state.voice_processing = False
                 error_msg = response.get("error", "Unknown error") if response else "No response from server"
                 st.error(f"Failed to process audio: {error_msg}")
 
         except Exception as e:
+            st.session_state.voice_processing = False
             st.error(f"Audio processing error: {str(e)}")
 
-    def _render_text_input(self):
-        """This method is no longer used - integrated into render_main_chat."""
-        pass
-
-    def _render_voice_input(self):
-        """This method is no longer used - integrated into render_main_chat."""
-        pass
-
     def _render_message_data(self, data: Any, response_type: str):
-        """Render additional message data based on response type."""
+        """Render additional message data based on response type with smaller images."""
         if response_type == "image" and data:
             if data.get("success") and data.get("image_data"):
                 try:
@@ -460,11 +462,21 @@ class SONAStreamlitApp:
                     if isinstance(image_data, str):
                         image_bytes = base64.b64decode(image_data)
                         image = Image.open(io.BytesIO(image_bytes))
-                        st.image(image, caption="Generated Image", use_column_width=True)
+
+                        # Display image with fixed width of 400px
+                        st.image(image, caption="Generated Image Description", width=400)
+
+                        # Show enhanced description if available
+                        if "metadata" in data and "detailed_description" in data["metadata"]:
+                            enhanced_desc = data["metadata"]["detailed_description"]
+                            if enhanced_desc and len(enhanced_desc) > 50:
+                                with st.expander("📝 View Full Description"):
+                                    st.write(enhanced_desc)
+
                 except Exception as e:
                     st.error(f"Could not display image: {e}")
             elif data.get("image_url"):
-                st.image(data["image_url"], caption="Generated Image", use_column_width=True)
+                st.image(data["image_url"], caption="Generated Image", width=400)
             else:
                 st.warning("Image generation failed or no image data available")
 
@@ -509,142 +521,6 @@ class SONAStreamlitApp:
         # Render components
         self.render_sidebar()
         self.render_main_chat()
-
-
-# UI Components
-# ui/components/chat_interface.py
-"""
-Chat interface components for SONA AI Assistant.
-"""
-
-import streamlit as st
-from typing import Dict, Any, List
-import time
-
-
-class ChatInterface:
-    """Chat interface component for SONA."""
-
-    def __init__(self):
-        """Initialize chat interface."""
-        pass
-
-    def render_message(self, message: Dict[str, Any], show_metadata: bool = False):
-        """
-        Render a single chat message.
-
-        Args:
-            message: Message dictionary
-            show_metadata: Whether to show message metadata
-        """
-        role = message.get("role", "user")
-        content = message.get("content", "")
-        timestamp = message.get("timestamp", time.time())
-
-        with st.chat_message(role):
-            st.write(content)
-
-            if show_metadata:
-                # Show metadata
-                metadata = []
-
-                if "intent" in message:
-                    metadata.append(f"Intent: {message['intent']}")
-
-                if "confidence" in message:
-                    confidence = message['confidence']
-                    metadata.append(f"Confidence: {confidence:.2f}")
-
-                if "input_type" in message:
-                    metadata.append(f"Input: {message['input_type']}")
-
-                if metadata:
-                    st.caption(" | ".join(metadata))
-
-    def render_typing_indicator(self):
-        """Render typing indicator."""
-        with st.chat_message("assistant"):
-            st.write("🤔 Thinking...")
-
-    def format_search_results(self, results: List[Dict[str, Any]]) -> str:
-        """Format search results for display."""
-        if not results:
-            return "No results found."
-
-        formatted = "Here's what I found:\n\n"
-
-        for i, result in enumerate(results[:3], 1):
-            title = result.get("title", "No title")
-            snippet = result.get("snippet", "No description")
-            url = result.get("url", "")
-
-            formatted += f"**{i}. {title}**\n"
-            formatted += f"{snippet}\n"
-            if url:
-                formatted += f"🔗 [Read more]({url})\n"
-            formatted += "\n"
-
-        return formatted
-
-
-# ui/components/voice_input.py
-"""
-Voice input components for SONA AI Assistant.
-"""
-
-import streamlit as st
-import io
-from typing import Optional, Tuple
-
-
-class VoiceInputComponent:
-    """Voice input component for SONA."""
-
-    def __init__(self):
-        """Initialize voice input component."""
-        self.supported_formats = ['wav', 'mp3', 'm4a', 'flac']
-
-    def render_file_upload(self) -> Optional[Tuple[bytes, str]]:
-        """
-        Render audio file upload interface.
-
-        Returns:
-            Tuple of (audio_bytes, filename) if file uploaded, None otherwise
-        """
-        uploaded_file = st.file_uploader(
-            "Choose an audio file",
-            type=self.supported_formats,
-            help=f"Supported formats: {', '.join(self.supported_formats)}"
-        )
-
-        if uploaded_file is not None:
-            # Show audio player
-            st.audio(uploaded_file, format='audio/wav')
-
-            # Show file info
-            file_size = len(uploaded_file.getvalue())
-            st.caption(f"File: {uploaded_file.name} ({file_size} bytes)")
-
-            return uploaded_file.getvalue(), uploaded_file.name
-
-        return None
-
-    def render_recording_interface(self):
-        """
-        Render audio recording interface.
-        Note: Browser-based recording requires additional JavaScript components.
-        """
-        st.info("🎤 **Audio Recording**")
-        st.write("Browser-based recording will be available in a future update.")
-        st.write("For now, please upload an audio file using the file uploader above.")
-
-    def validate_audio_format(self, filename: str) -> bool:
-        """Validate audio file format."""
-        if not filename:
-            return False
-
-        extension = filename.split('.')[-1].lower()
-        return extension in self.supported_formats
 
 
 # Main application entry point

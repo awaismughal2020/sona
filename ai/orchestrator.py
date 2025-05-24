@@ -1,5 +1,5 @@
 """
-AI Orchestrator - Central coordination of all AI services.
+AI Orchestrator - Enhanced version with better response synthesis.
 Handles routing between different AI components and manages service abstraction.
 """
 from typing import Dict, Any, Optional, Union, List
@@ -13,13 +13,12 @@ from utils.constants import IntentType, ModelType, ERROR_MESSAGES, SONA_PERSONA
 from .speech_to_text.whisper_service import WhisperService
 from .intent_detection.openai_service import OpenAIIntentService
 from .image_generation.gemini_service import GeminiImageService
-from .image_generation.hybrid_service import HybridImageService
 from .web_search.serp_service import SerpSearchService
 
 
 class AIOrchestrator:
     """
-    Central orchestrator for all AI services.
+    Enhanced AI orchestrator with better response synthesis.
     Provides abstraction layer and handles service coordination.
     """
 
@@ -41,7 +40,7 @@ class AIOrchestrator:
 
             # Image Generation Services
             "image_generation": {
-                ModelType.GEMINI: HybridImageService()
+                ModelType.GEMINI: GeminiImageService()
             },
 
             # Web Search Services
@@ -244,9 +243,115 @@ class AIOrchestrator:
                 "metadata": {"prompt": prompt, "error": str(e)}
             }
 
+    async def _synthesize_search_results_with_ai(self, query: str, search_results: List[Dict[str, Any]]) -> str:
+        """
+        Use AI to synthesize search results into a coherent answer.
+
+        Args:
+            query: Original search query
+            search_results: List of search results
+
+        Returns:
+            Synthesized answer
+        """
+        try:
+            if not search_results:
+                return f"I couldn't find any information about '{query}'. Could you try rephrasing your question?"
+
+            # Get the intent detection service (which uses OpenAI) to synthesize results
+            intent_model = self.active_models["intent_detection"]
+            intent_service = self.services["intent_detection"][intent_model]
+
+            if not intent_service.is_available():
+                return self._format_search_results_fallback(query, search_results)
+
+            # Create context from search results
+            context = f"User question: {query}\n\nSearch results:\n"
+            for i, result in enumerate(search_results[:3], 1):  # Use top 3 results
+                title = result.get("title", "No title")
+                snippet = result.get("snippet", "No description available")
+                url = result.get("url", "")
+                context += f"{i}. {title}\n{snippet}\n{url}\n\n"
+
+            # Create synthesis prompt
+            synthesis_prompt = f"""Based on the search results provided, answer the user's question directly and concisely.
+
+{context}
+
+Instructions:
+1. Provide a direct, factual answer to the question
+2. Use information from the search results
+3. Keep the answer concise but complete
+4. If there are specific numbers or facts, include them
+5. End with 1-2 reference links in this format: "Sources: [Title](URL)"
+
+Answer the question: {query}"""
+
+            # Use OpenAI to synthesize the answer
+            client = intent_service.client
+            response = await client.chat.completions.create(
+                model=intent_service.config['model'],
+                messages=[
+                    {"role": "system",
+                     "content": f"You are {SONA_PERSONA['name']}, {SONA_PERSONA['personality']}. Provide accurate, helpful answers based on search results."},
+                    {"role": "user", "content": synthesis_prompt}
+                ],
+                max_tokens=300,
+                temperature=0.3  # Lower temperature for factual responses
+            )
+
+            synthesized_answer = response.choices[0].message.content.strip()
+
+            # Ensure we have a good answer
+            if synthesized_answer and len(synthesized_answer) > 20:
+                logger.info("AI synthesis completed successfully")
+                return synthesized_answer
+            else:
+                return self._format_search_results_fallback(query, search_results)
+
+        except Exception as e:
+            logger.error(f"AI synthesis failed: {e}")
+            return self._format_search_results_fallback(query, search_results)
+
+    def _format_search_results_fallback(self, query: str, search_results: List[Dict[str, Any]]) -> str:
+        """
+        Fallback method to format search results when AI synthesis fails.
+
+        Args:
+            query: Original search query
+            search_results: List of search results
+
+        Returns:
+            Formatted response string
+        """
+        if not search_results:
+            return f"I couldn't find any results for '{query}'. Try rephrasing your search."
+
+        # Try to extract a direct answer from the first result
+        first_result = search_results[0]
+        title = first_result.get("title", "")
+        snippet = first_result.get("snippet", "")
+        url = first_result.get("url", "")
+
+        # Create a basic answer
+        response = f"Based on my search about '{query}':\n\n"
+
+        if snippet:
+            response += f"{snippet}\n\n"
+
+        # Add top 2 reference links
+        response += "**Sources:**\n"
+        for i, result in enumerate(search_results[:2], 1):
+            result_title = result.get("title", "Search Result")
+            result_url = result.get("url", "")
+            if result_url:
+                response += f"{i}. [{result_title}]({result_url})\n"
+
+        return response
+
     async def process_user_input(self, input_text: str, input_type: str = "text") -> Dict[str, Any]:
         """
-        Process user input end-to-end using SONA's capabilities.
+        Process user input end-to-end using SONA's capabilities with enhanced synthesis.
 
         Args:
             input_text: User input (text or transcribed from audio)
@@ -268,13 +373,13 @@ class AIOrchestrator:
                 search_query = intent_result["entities"].get("query", input_text)
                 search_results = await self.perform_web_search(search_query)
 
-                # Format search results for user
-                formatted_response = self._format_search_response(search_results, search_query)
+                # Use AI to synthesize the search results into a proper answer
+                synthesized_response = await self._synthesize_search_results_with_ai(search_query, search_results)
 
                 return {
                     "intent": intent.value,
                     "response_type": "text",
-                    "response": formatted_response,
+                    "response": synthesized_response,
                     "data": search_results,
                     "confidence": intent_result["confidence"]
                 }
@@ -285,9 +390,15 @@ class AIOrchestrator:
                 image_result = await self.generate_image(image_prompt)
 
                 if image_result["success"]:
-                    response = f"I've generated an image based on your request: '{image_prompt}'"
+                    response = f"I've created a detailed visual description for: '{image_prompt}'"
+
+                    # Add enhanced description if available
+                    if "enhanced_description" in image_result.get("metadata", {}):
+                        enhanced_desc = image_result["metadata"]["enhanced_description"]
+                        if enhanced_desc:
+                            response += f"\n\n**Enhanced Description:** {enhanced_desc[:200]}..."
                 else:
-                    response = f"I'm sorry, I couldn't generate the image. {image_result.get('error', '')}"
+                    response = f"I'm sorry, I couldn't generate the image description. {image_result.get('error', '')}"
 
                 return {
                     "intent": intent.value,
@@ -326,38 +437,6 @@ class AIOrchestrator:
                 "confidence": 0.0,
                 "error": str(e)
             }
-
-    def _format_search_response(self, search_results: List[Dict[str, Any]], query: str) -> str:
-        """
-        Format search results into a user-friendly response.
-
-        Args:
-            search_results: List of search results
-            query: Original search query
-
-        Returns:
-            Formatted response string
-        """
-        if not search_results:
-            return f"I couldn't find any results for '{query}'. Try rephrasing your search."
-
-        response = f"Here's what I found for '{query}':\n\n"
-
-        for i, result in enumerate(search_results[:3], 1):  # Show top 3 results
-            title = result.get("title", "No title")
-            snippet = result.get("snippet", "No description available")
-            url = result.get("url", "")
-
-            response += f"{i}. **{title}**\n"
-            response += f"   {snippet}\n"
-            if url:
-                response += f"   🔗 {url}\n"
-            response += "\n"
-
-        if len(search_results) > 3:
-            response += f"... and {len(search_results) - 3} more results.\n"
-
-        return response
 
     async def get_health_status(self) -> Dict[str, Any]:
         """
