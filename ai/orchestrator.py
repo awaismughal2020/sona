@@ -13,6 +13,7 @@ from utils.constants import IntentType, ModelType, ERROR_MESSAGES, SONA_PERSONA
 from .speech_to_text.whisper_service import WhisperService
 from .intent_detection.openai_service import OpenAIIntentService
 from .image_generation.gemini_service import GeminiImageService
+from .image_generation.hybrid_service import HybridImageService
 from .web_search.serp_service import SerpSearchService
 
 
@@ -40,7 +41,7 @@ class AIOrchestrator:
 
             # Image Generation Services
             "image_generation": {
-                ModelType.GEMINI: GeminiImageService()
+                ModelType.GEMINI: HybridImageService()
             },
 
             # Web Search Services
