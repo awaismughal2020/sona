@@ -1,2 +1,1 @@
-# sona
-SONA - Modular AI Web Assistant
+**SONA - Your friendly, efficient, and always helpful AI assistant!**
