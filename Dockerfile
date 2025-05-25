@@ -1,4 +1,8 @@
+# © 2025 Awais Mughal. All rights reserved.
+# Unauthorized commercial use is prohibited.
+
 # Multi-stage Dockerfile for SONA AI Assistant
+
 FROM python:3.11-slim as base
 
 # Set environment variables

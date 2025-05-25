@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 Hybrid image generation service that uses Gemini for prompt enhancement
 and OpenAI DALL-E for actual image generation.
 """

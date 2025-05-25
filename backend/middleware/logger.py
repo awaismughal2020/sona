@@ -1,5 +1,7 @@
-# backend/middleware/logger.py
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 Logging middleware and configuration for SONA AI Assistant.
 """
 import sys

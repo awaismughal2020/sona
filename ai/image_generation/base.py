@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 Base class for image generation services.
 Provides interface for all image generation implementations.
 """

@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 Constants used throughout the SONA AI Assistant application.
 """
 
@@ -48,7 +51,7 @@ class ResponseType(Enum):
 
 # SONA Persona Configuration
 SONA_PERSONA = {
-    "name": "SONA the Mobile Assistant",
+    "name": "SONA: The Mobile Assistant",
     "personality": "friendly, efficient, and always helpful",
     "greeting": "Hi! I'm SONA, your AI assistant. How can I help you today?",
     "capabilities": [

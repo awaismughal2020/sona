@@ -1,3 +1,7 @@
+# © 2025 Awais Mughal. All rights reserved.
+# Unauthorized commercial use is prohibited.
+
+
 # Docker Compose configuration for SONA AI Assistant
 services:
   # SONA Backend Service
@@ -65,61 +69,8 @@ services:
     networks:
       - sona-network
 
-  # Optional: Redis for caching (uncomment if needed)
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: sona-redis
-  #   ports:
-  #     - "6379:6379"
-  #   volumes:
-  #     - redis_data:/data
-  #   command: redis-server --appendonly yes
-  #   restart: unless-stopped
-  #   networks:
-  #     - sona-network
-
-  # Optional: PostgreSQL for session storage (uncomment if needed)
-  # postgres:
-  #   image: postgres:15-alpine
-  #   container_name: sona-postgres
-  #   environment:
-  #     POSTGRES_DB: sona
-  #     POSTGRES_USER: sona
-  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sona_password}
-  #   ports:
-  #     - "5432:5432"
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   restart: unless-stopped
-  #   networks:
-  #     - sona-network
-
-  # Optional: Nginx reverse proxy (uncomment for production)
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: sona-nginx
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - ./ssl:/etc/ssl/certs:ro
-  #   depends_on:
-  #     - sona-backend
-  #     - sona-frontend
-  #   restart: unless-stopped
-  #   networks:
-  #     - sona-network
-
 # Networks
 networks:
   sona-network:
     driver: bridge
     name: sona-network
-
-# Volumes (uncomment if using optional services)
-# volumes:
-#   redis_data:
-#     driver: local
-#   postgres_data:
-#     driver: local

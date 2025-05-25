@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 FastAPI backend with real AI integration including proper image generation for SONA AI Assistant.
 """
 
@@ -11,7 +14,7 @@ from loguru import logger
 import sys
 import os
 
-# Add project root to path
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.settings import get_settings

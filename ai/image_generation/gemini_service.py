@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 Google Gemini image generation service implementation with smaller 400x400px images.
 Handles image generation using Gemini AI models with proper image descriptions.
 """

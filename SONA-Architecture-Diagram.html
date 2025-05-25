@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONA AI Assistant - Architecture Diagram</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f7fa;
+            margin: 0;
+            padding: 20px;
+            color: #2c3e50;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 40px;
+            font-size: 1.2em;
+        }
+        
+        .architecture-diagram {
+            width: 100%;
+            min-height: 800px;
+            position: relative;
+            background-color: #fafbfc;
+            border-radius: 8px;
+            padding: 30px;
+            box-sizing: border-box;
+        }
+        
+        .layer {
+            margin-bottom: 40px;
+            position: relative;
+        }
+        
+        .layer-title {
+            font-weight: 600;
+            color: #34495e;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .components {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: space-between;
+        }
+        
+        .component {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            min-width: 200px;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .component:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .component-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .component-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 20px;
+        }
+        
+        .component-title {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 1.1em;
+        }
+        
+        .component-description {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        
+        .component-tech {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        
+        .tech-tag {
+            background-color: #ecf0f1;
+            color: #34495e;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+        
+        /* Component Type Colors */
+        .frontend { border-color: #3498db; }
+        .frontend .component-icon { background-color: #e8f4f8; color: #3498db; }
+        
+        .backend { border-color: #27ae60; }
+        .backend .component-icon { background-color: #e8f8f5; color: #27ae60; }
+        
+        .ai-service { border-color: #9b59b6; }
+        .ai-service .component-icon { background-color: #f4e8f8; color: #9b59b6; }
+        
+        .external { border-color: #e74c3c; }
+        .external .component-icon { background-color: #fce8e8; color: #e74c3c; }
+        
+        .orchestrator { border-color: #f39c12; }
+        .orchestrator .component-icon { background-color: #fef5e7; color: #f39c12; }
+        
+        .utility { border-color: #95a5a6; }
+        .utility .component-icon { background-color: #ecf0f1; color: #95a5a6; }
+        
+        /* Connections */
+        .connection-line {
+            position: absolute;
+            background-color: #bdc3c7;
+            z-index: -1;
+        }
+        
+        .vertical-line {
+            width: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .horizontal-line {
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        /* Legend */
+        .legend {
+            margin-top: 40px;
+            padding: 20px;
+            background-color: #fafbfc;
+            border-radius: 8px;
+        }
+        
+        .legend-title {
+            font-weight: 600;
+            color: #34495e;
+            margin-bottom: 15px;
+        }
+        
+        .legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .components {
+                flex-direction: column;
+            }
+            .component {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 SONA AI Assistant</h1>
+        <p class="subtitle">System Architecture Diagram</p>
+        
+        <div class="architecture-diagram">
+            <!-- Frontend Layer -->
+            <div class="layer">
+                <h2 class="layer-title">🎨 Frontend Layer</h2>
+                <div class="components">
+                    <div class="component frontend">
+                        <div class="component-header">
+                            <div class="component-icon">📱</div>
+                            <div class="component-title">Streamlit UI</div>
+                        </div>
+                        <div class="component-description">
+                            Interactive web interface with chat functionality, voice input, and real-time responses
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">Streamlit</span>
+                            <span class="tech-tag">Python</span>
+                            <span class="tech-tag">WebRTC</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component frontend">
+                        <div class="component-header">
+                            <div class="component-icon">💬</div>
+                            <div class="component-title">Chat Interface</div>
+                        </div>
+                        <div class="component-description">
+                            Message rendering, chat history management, and response formatting
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">Session State</span>
+                            <span class="tech-tag">Components</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component frontend">
+                        <div class="component-header">
+                            <div class="component-icon">🎤</div>
+                            <div class="component-title">Voice Input</div>
+                        </div>
+                        <div class="component-description">
+                            Real-time audio recording and file upload with device selection
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">sounddevice</span>
+                            <span class="tech-tag">numpy</span>
+                            <span class="tech-tag">wave</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Backend Layer -->
+            <div class="layer">
+                <h2 class="layer-title">⚙️ Backend Layer</h2>
+                <div class="components">
+                    <div class="component backend">
+                        <div class="component-header">
+                            <div class="component-icon">🚀</div>
+                            <div class="component-title">FastAPI Server</div>
+                        </div>
+                        <div class="component-description">
+                            RESTful API endpoints for chat, audio processing, and health checks
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">FastAPI</span>
+                            <span class="tech-tag">Uvicorn</span>
+                            <span class="tech-tag">CORS</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component backend">
+                        <div class="component-header">
+                            <div class="component-icon">🛡️</div>
+                            <div class="component-title">Middleware</div>
+                        </div>
+                        <div class="component-description">
+                            Error handling, request validation, and logging middleware
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">Loguru</span>
+                            <span class="tech-tag">Pydantic</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component backend">
+                        <div class="component-header">
+                            <div class="component-icon">🔧</div>
+                            <div class="component-title">Configuration</div>
+                        </div>
+                        <div class="component-description">
+                            Environment variables and settings management
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">pydantic-settings</span>
+                            <span class="tech-tag">python-dotenv</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Orchestration Layer -->
+            <div class="layer">
+                <h2 class="layer-title">🧠 AI Orchestration</h2>
+                <div class="components">
+                    <div class="component orchestrator" style="width: 100%; max-width: 600px; margin: 0 auto;">
+                        <div class="component-header">
+                            <div class="component-icon">🎯</div>
+                            <div class="component-title">AI Orchestrator</div>
+                        </div>
+                        <div class="component-description">
+                            Central coordination service that routes requests to appropriate AI services, manages service lifecycle, and synthesizes responses
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">Intent Routing</span>
+                            <span class="tech-tag">Service Management</span>
+                            <span class="tech-tag">Response Synthesis</span>
+                            <span class="tech-tag">Model Switching</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Services Layer -->
+            <div class="layer">
+                <h2 class="layer-title">🤖 AI Services</h2>
+                <div class="components">
+                    <div class="component ai-service">
+                        <div class="component-header">
+                            <div class="component-icon">🗣️</div>
+                            <div class="component-title">Speech to Text</div>
+                        </div>
+                        <div class="component-description">
+                            Audio transcription using OpenAI Whisper API
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">Whisper API</span>
+                            <span class="tech-tag">OpenAI</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component ai-service">
+                        <div class="component-header">
+                            <div class="component-icon">🎭</div>
+                            <div class="component-title">Intent Detection</div>
+                        </div>
+                        <div class="component-description">
+                            Natural language understanding and intent classification
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">GPT-3.5</span>
+                            <span class="tech-tag">OpenAI</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component ai-service">
+                        <div class="component-header">
+                            <div class="component-icon">🖼️</div>
+                            <div class="component-title">Image Generation</div>
+                        </div>
+                        <div class="component-description">
+                            Enhanced image descriptions using Gemini 2.0
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">Gemini 2.0</span>
+                            <span class="tech-tag">Google AI</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component ai-service">
+                        <div class="component-header">
+                            <div class="component-icon">🔍</div>
+                            <div class="component-title">Web Search</div>
+                        </div>
+                        <div class="component-description">
+                            Internet search capabilities with result synthesis
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">SERP API</span>
+                            <span class="tech-tag">Google Search</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- External Services Layer -->
+            <div class="layer">
+                <h2 class="layer-title">🌐 External Services</h2>
+                <div class="components">
+                    <div class="component external">
+                        <div class="component-header">
+                            <div class="component-icon">🔑</div>
+                            <div class="component-title">OpenAI API</div>
+                        </div>
+                        <div class="component-description">
+                            GPT-3.5 for chat and Whisper for transcription
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">API Key</span>
+                            <span class="tech-tag">REST</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component external">
+                        <div class="component-header">
+                            <div class="component-icon">🔮</div>
+                            <div class="component-title">Google Gemini</div>
+                        </div>
+                        <div class="component-description">
+                            Gemini 2.0 Flash for enhanced descriptions
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">API Key</span>
+                            <span class="tech-tag">REST</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component external">
+                        <div class="component-header">
+                            <div class="component-icon">🌍</div>
+                            <div class="component-title">SERP API</div>
+                        </div>
+                        <div class="component-description">
+                            Google search results and suggestions
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">API Key</span>
+                            <span class="tech-tag">REST</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Utilities Layer -->
+            <div class="layer">
+                <h2 class="layer-title">🛠️ Utilities & Infrastructure</h2>
+                <div class="components">
+                    <div class="component utility">
+                        <div class="component-header">
+                            <div class="component-icon">📊</div>
+                            <div class="component-title">Validation</div>
+                        </div>
+                        <div class="component-description">
+                            Input validation and sanitization utilities
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">Regex</span>
+                            <span class="tech-tag">Type Checking</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component utility">
+                        <div class="component-header">
+                            <div class="component-icon">🎵</div>
+                            <div class="component-title">Audio Processing</div>
+                        </div>
+                        <div class="component-description">
+                            Audio file handling and preprocessing
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">librosa</span>
+                            <span class="tech-tag">soundfile</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component utility">
+                        <div class="component-header">
+                            <div class="component-icon">📁</div>
+                            <div class="component-title">File Management</div>
+                        </div>
+                        <div class="component-description">
+                            Temporary file handling and cleanup
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">tempfile</span>
+                            <span class="tech-tag">pathlib</span>
+                        </div>
+                    </div>
+                    
+                    <div class="component utility">
+                        <div class="component-header">
+                            <div class="component-icon">🐳</div>
+                            <div class="component-title">Docker</div>
+                        </div>
+                        <div class="component-description">
+                            Containerization and deployment
+                        </div>
+                        <div class="component-tech">
+                            <span class="tech-tag">Docker</span>
+                            <span class="tech-tag">Compose</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Legend -->
+        <div class="legend">
+            <h3 class="legend-title">Component Types</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color" style="border-color: #3498db; background-color: #e8f4f8;"></div>
+                    <span>Frontend Components</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="border-color: #27ae60; background-color: #e8f8f5;"></div>
+                    <span>Backend Services</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="border-color: #f39c12; background-color: #fef5e7;"></div>
+                    <span>Orchestration</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="border-color: #9b59b6; background-color: #f4e8f8;"></div>
+                    <span>AI Services</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="border-color: #e74c3c; background-color: #fce8e8;"></div>
+                    <span>External APIs</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="border-color: #95a5a6; background-color: #ecf0f1;"></div>
+                    <span>Utilities</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

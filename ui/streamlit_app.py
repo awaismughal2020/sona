@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 Updated Streamlit UI for SONA AI Assistant with real-time voice recording.
 """
 
@@ -31,7 +34,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Add project root to path
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.settings import get_settings
@@ -431,10 +434,6 @@ class SONAStreamlitApp:
             # Audio system info
             with st.expander("🔧 Audio System Info"):
                 st.markdown("**Your available devices:**")
-                st.markdown("- **MacBook Pro Microphone** (Recommended - Good audio level)")
-                st.markdown("- **iPhone 16 Pro Max Microphone** (Good - Moderate audio level)")
-                st.markdown("- **WH-1000XM5** (Backup - Low audio level)")
-                st.markdown("- **Microsoft Teams Audio** (Backup - Low audio level)")
 
         except Exception as e:
             st.error(f"❌ Audio system error: {str(e)}")
@@ -480,13 +479,7 @@ class SONAStreamlitApp:
             st.markdown("""
             **Based on your audio diagnostic:**
 
-            **Best Options:**
-            - 🥇 **MacBook Pro Microphone** - Highest audio level detected
-            - 🥈 **iPhone 16 Pro Max Microphone** - Good audio level
-
             **For best results:**
-            - Use MacBook Pro's built-in microphone for clearest audio
-            - If using iPhone, keep it close (6-8 inches away)
             - Speak clearly and at normal volume
             - Record in a quiet environment
 
@@ -507,17 +500,11 @@ class SONAStreamlitApp:
             countdown_placeholder = st.empty()
             progress_bar = st.progress(0.0)
 
-            # Based on your diagnostic, prioritize devices with good audio levels
-            # Device 3: MacBook Pro Microphone (0.0697 level) - Best
-            # Device 2: iPhone 16 Pro Max Microphone (0.0327 level) - Good
-            # Device 0: WH-1000XM5 (0.0000 level) - Backup
-            # Device 5: Microsoft Teams Audio (0.0000 level) - Backup
-
             preferred_devices = [
-                (3, "MacBook Pro Microphone"),
-                (2, "iPhone 16 Pro Max Microphone"),
-                (0, "WH-1000XM5"),
-                (5, "Microsoft Teams Audio")
+                (3, "Device 1"),
+                (2, "Device 2"),
+                (0, "Device 3"),
+                (5, "Device 4")
             ]
 
             # Countdown

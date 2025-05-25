@@ -1,5 +1,7 @@
-#!/usr/bin/env python3
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 SONA AI Assistant - Main Entry Point
 Handles application startup and orchestrates backend and frontend services.
 """
@@ -14,7 +16,6 @@ import subprocess
 import time
 from loguru import logger
 
-# Add project root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from config.settings import get_settings

@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 Middleware package for SONA AI Assistant backend.
 """
 from .logger import setup_logging

@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 File handling utilities for SONA AI Assistant.
 Handles temporary file creation, cleanup, and file operations.
 """

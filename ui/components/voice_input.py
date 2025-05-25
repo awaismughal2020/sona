@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 Enhanced Voice input components for SONA AI Assistant with real-time recording.
 Handles both audio file upload and live microphone recording.
 """

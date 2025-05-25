@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 Configuration settings for SONA AI Assistant.
 Handles environment variables and application configuration.
 """

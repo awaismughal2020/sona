@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 Validation utilities for SONA AI Assistant.
 Handles input validation and data sanitization.
 """

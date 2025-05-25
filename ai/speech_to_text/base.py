@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 Base class for speech-to-text services.
 Provides interface for all speech-to-text implementations.
 """

@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 OpenAI-powered intent detection service implementation.
 Handles intent classification and response generation using OpenAI GPT models.
 """

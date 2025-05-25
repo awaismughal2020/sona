@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 Audio processing utilities for SONA AI Assistant.
 Handles audio file validation, conversion, and preprocessing.
 """

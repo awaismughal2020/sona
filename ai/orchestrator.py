@@ -1,4 +1,7 @@
 """
+© 2025 Awais Mughal. All rights reserved.
+Unauthorized commercial use is prohibited.
+
 AI Orchestrator - Enhanced version with better response synthesis.
 Handles routing between different AI components and manages service abstraction.
 """
