@@ -45,8 +45,8 @@
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd sona-ai-assistant
+   git clone git@github.com:awaismughal2020/sona.git
+   cd sona
    ```
 
 2. **Create virtual environment**
