@@ -3,6 +3,6 @@ UI components package for SONA AI Assistant.
 """
 
 from .chat_interface import ChatInterface
-from .voice_input import VoiceInputComponent
+from .voice_input import EnhancedVoiceInputComponent
 
-__all__ = ["ChatInterface", "VoiceInputComponent"]
+__all__ = ["ChatInterface", "EnhancedVoiceInputComponent"]

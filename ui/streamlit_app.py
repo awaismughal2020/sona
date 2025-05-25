@@ -1,6 +1,5 @@
 """
-Streamlit UI for SONA AI Assistant with proper voice processing reset.
-Provides web-based interface for text and voice interactions.
+Updated Streamlit UI for SONA AI Assistant with real-time voice recording.
 """
 
 import streamlit as st
@@ -14,8 +13,17 @@ import sys
 import os
 from typing import Optional, Dict, Any
 import time
+import numpy as np
 
-# IMPORTANT: set_page_config must be the FIRST Streamlit command
+try:
+    import sounddevice as sd
+    import wave
+    AUDIO_LIBS_AVAILABLE = True
+    print("✅ Audio libraries loaded successfully")
+except ImportError as e:
+    AUDIO_LIBS_AVAILABLE = False
+    print(f"⚠️ Audio libraries not available: {e}")
+
 st.set_page_config(
     page_title="SONA AI Assistant",
     page_icon="🤖",
@@ -29,18 +37,22 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import get_settings
 from utils.constants import SONA_PERSONA
 from ui.components.chat_interface import ChatInterface
-from ui.components.voice_input import VoiceInputComponent
+
+# Import the enhanced voice component (you'll need to save the previous artifact as this file)
+# from ui.components.enhanced_voice_input import EnhancedVoiceInputComponent
 
 
 class SONAStreamlitApp:
-    """SONA Streamlit Application."""
+    """SONA Streamlit Application with Enhanced Voice Features."""
 
     def __init__(self):
         """Initialize Streamlit app."""
         self.settings = get_settings()
         self.backend_url = self.settings.get_backend_url()
         self.chat_interface = ChatInterface()
-        self.voice_component = VoiceInputComponent()
+
+        # Use enhanced voice component
+        # self.voice_component = EnhancedVoiceInputComponent()
 
         # Initialize session state
         self._initialize_session_state()
@@ -69,11 +81,11 @@ class SONAStreamlitApp:
         if "voice_processing" not in st.session_state:
             st.session_state.voice_processing = False
 
-        if "last_processed_file" not in st.session_state:
-            st.session_state.last_processed_file = None
+        if "realtime_recording" not in st.session_state:
+            st.session_state.realtime_recording = False
 
-        if "voice_file_key" not in st.session_state:
-            st.session_state.voice_file_key = 0
+        if "voice_tab_key" not in st.session_state:
+            st.session_state.voice_tab_key = 0
 
     def check_backend_health(self) -> bool:
         """Check if backend is healthy."""
@@ -136,35 +148,69 @@ class SONAStreamlitApp:
             st.error(f"Failed to process audio: {str(e)}")
             return None
 
-    def get_available_models(self):
-        """Get available models from backend."""
+    def process_audio_callback(self, audio_bytes: bytes, filename: str):
+        """Callback function to process audio data."""
         try:
-            response = requests.get(f"{self.backend_url}/api/v1/models", timeout=10)
-            if response.status_code == 200:
-                result = response.json()
-                st.session_state.available_models = result.get("models", {})
+            st.session_state.voice_processing = True
+
+            # Show processing status
+            with st.spinner("🔄 Processing your voice input..."):
+                # Upload and process audio
+                response = self.upload_audio(audio_bytes, filename)
+
+            st.session_state.voice_processing = False
+
+            if response and response.get("success"):
+                transcription = response.get("transcription", "")
+
+                # Add transcription as user message
+                if transcription:
+                    st.session_state.messages.append({
+                        "role": "user",
+                        "content": f"🎤 {transcription}",
+                        "timestamp": time.time(),
+                        "input_type": "audio"
+                    })
+
+                # Add assistant response
+                assistant_message = {
+                    "role": "assistant",
+                    "content": response["response"],
+                    "timestamp": time.time(),
+                    "intent": response.get("intent"),
+                    "confidence": response.get("confidence"),
+                    "response_type": response.get("response_type"),
+                    "data": response.get("data")
+                }
+
+                st.session_state.messages.append(assistant_message)
+
+                # Show success message
+                st.success(f"✅ **Transcription:** {transcription}")
+
+                # Display response immediately
+                with st.chat_message("assistant"):
+                    st.write(response["response"])
+
+                    # Show additional data if available
+                    if response.get("data"):
+                        self._render_message_data(response["data"], response.get("response_type"))
+
+                # Increment tab key to refresh interface
+                st.session_state.voice_tab_key += 1
+
+                # Rerun to update chat
+                time.sleep(1)
+                st.rerun()
+
+            else:
+                st.session_state.voice_processing = False
+                error_msg = response.get("error", "Unknown error") if response else "No response from server"
+                st.error(f"❌ Failed to process audio: {error_msg}")
+
         except Exception as e:
-            st.warning(f"Could not fetch available models: {str(e)}")
-
-    def switch_model(self, service_type: str, model_type: str) -> bool:
-        """Switch AI model for a service."""
-        try:
-            data = {
-                "service_type": service_type,
-                "model_type": model_type
-            }
-
-            response = requests.post(
-                f"{self.backend_url}/api/v1/switch-model",
-                data=data,
-                timeout=15
-            )
-
-            return response.status_code == 200
-
-        except Exception as e:
-            st.error(f"Failed to switch model: {str(e)}")
-            return False
+            st.session_state.voice_processing = False
+            st.error(f"❌ Audio processing error: {str(e)}")
 
     def render_sidebar(self):
         """Render sidebar with configuration options."""
@@ -188,32 +234,26 @@ class SONAStreamlitApp:
 
             st.divider()
 
-            # Model configuration
-            st.subheader("🤖 AI Models")
+            # Voice system status
+            st.subheader("🎤 Voice System")
 
-            # Get available models
-            if st.button("🔄 Refresh Models"):
-                self.get_available_models()
+            # Check if real-time recording is available
+            try:
+                import sounddevice as sd
+                devices = sd.query_devices()
+                input_devices = [d for d in devices if d['max_input_channels'] > 0]
 
-            if st.session_state.available_models:
-                for service_type, models in st.session_state.available_models.items():
-                    if models:
-                        st.write(f"**{service_type.replace('_', ' ').title()}:**")
+                if input_devices:
+                    st.success("✅ Real-time recording available")
+                    st.info(f"Input devices: {len(input_devices)}")
+                else:
+                    st.warning("⚠️ No input devices found")
 
-                        current_model = getattr(self.settings, f"{service_type}_model", models[0])
-
-                        selected_model = st.selectbox(
-                            f"Select {service_type} model:",
-                            models,
-                            index=models.index(current_model) if current_model in models else 0,
-                            key=f"model_{service_type}"
-                        )
-
-                        if selected_model != current_model:
-                            if st.button(f"Switch {service_type}", key=f"switch_{service_type}"):
-                                if self.switch_model(service_type, selected_model):
-                                    st.success(f"Switched to {selected_model}")
-                                    st.rerun()
+            except ImportError:
+                st.error("❌ Real-time recording disabled")
+                st.caption("Install sounddevice: pip install sounddevice")
+            except Exception as e:
+                st.warning(f"⚠️ Audio system issue: {str(e)}")
 
             st.divider()
 
@@ -227,7 +267,7 @@ class SONAStreamlitApp:
             # Session info
             st.subheader("📊 Session Info")
             st.write(f"**Session ID:** {st.session_state.session_id[:12]}...")
-            st.write(f"**Messages:** {len(st.session_state.messages) - 1}")  # Exclude greeting
+            st.write(f"**Messages:** {len(st.session_state.messages) - 1}")
 
             if st.button("🗑️ Clear Chat History"):
                 st.session_state.messages = [
@@ -239,20 +279,16 @@ class SONAStreamlitApp:
                 ]
                 st.rerun()
 
-            # Voice processing controls
+            # Voice controls
             st.divider()
             st.subheader("🎤 Voice Controls")
 
-            if st.button("🔄 Reset Voice Input"):
-                self._reset_voice_input()
-                st.success("Voice input reset!")
+            if st.button("🔄 Reset Voice Interface"):
+                st.session_state.voice_processing = False
+                st.session_state.realtime_recording = False
+                st.session_state.voice_tab_key += 1
+                st.success("Voice interface reset!")
                 st.rerun()
-
-    def _reset_voice_input(self):
-        """Reset voice input state."""
-        st.session_state.voice_processing = False
-        st.session_state.last_processed_file = None
-        st.session_state.voice_file_key += 1  # This will reset the file uploader
 
     def render_main_chat(self):
         """Render main chat interface."""
@@ -268,10 +304,7 @@ class SONAStreamlitApp:
                 if "data" in message and message["data"]:
                     self._render_message_data(message["data"], message.get("response_type"))
 
-        # Input section
-        st.divider()
-
-        # Chat input
+        # Text input section
         if prompt := st.chat_input("Type your message here..."):
             # Add user message
             st.session_state.messages.append({
@@ -318,155 +351,358 @@ class SONAStreamlitApp:
 
         # Voice input section
         st.markdown("---")
+        self._render_enhanced_voice_section()
+
+    def _render_enhanced_voice_section(self):
+        """Render enhanced voice input section."""
         st.markdown("### 🎤 Voice Input")
-        self._render_voice_input_section()
 
-    def _render_voice_input_section(self):
-        """Render voice input section with proper reset functionality."""
-        st.markdown("Upload an audio file to interact with SONA using your voice.")
+        # Check if currently processing
+        if st.session_state.voice_processing:
+            st.info("🔄 Processing voice input... Please wait.")
+            return
 
-        # Create columns for better layout
-        col1, col2 = st.columns([3, 1])
+        # Create tabs for different voice input methods
+        tab1, tab2 = st.tabs(["📁 Upload Audio File", "🎙️ Real-time Recording"])
 
-        with col1:
-            # File upload with dynamic key for reset functionality
-            uploaded_file = st.file_uploader(
-                "Upload audio file",
-                type=self.settings.get_allowed_audio_formats(),
-                help="Supported formats: " + ", ".join(self.settings.get_allowed_audio_formats()),
-                key=f"audio_uploader_{st.session_state.voice_file_key}"
-            )
+        with tab1:
+            self._render_file_upload_tab()
 
-        with col2:
-            # Reset button
-            if st.button("🔄 Reset", help="Clear audio upload"):
-                self._reset_voice_input()
-                st.rerun()
+        with tab2:
+            self._render_realtime_recording_tab()
 
-        # Only show file info and process button if file is uploaded and not currently processing
-        if uploaded_file is not None and not st.session_state.voice_processing:
-            # Check if this is a new file
-            file_info = f"{uploaded_file.name}_{len(uploaded_file.getvalue())}"
+    def _render_file_upload_tab(self):
+        """Render file upload tab."""
+        st.markdown("Upload an audio file to transcribe:")
 
-            # Show audio file info
-            st.audio(uploaded_file, format=f'audio/{uploaded_file.type.split("/")[-1]}')
+        uploaded_file = st.file_uploader(
+            "Choose an audio file",
+            type=self.settings.get_allowed_audio_formats(),
+            help=f"Supported: {', '.join(self.settings.get_allowed_audio_formats())}",
+            key=f"file_upload_{st.session_state.voice_tab_key}"
+        )
+
+        if uploaded_file is not None:
+            # Display file info
+            file_size = len(uploaded_file.getvalue())
 
             col1, col2 = st.columns(2)
             with col1:
                 st.info(f"📁 **File:** {uploaded_file.name}")
             with col2:
-                file_size = len(uploaded_file.getvalue())
                 st.info(f"📊 **Size:** {file_size / 1024:.1f} KB")
 
+            # Audio player
+            st.audio(uploaded_file.getvalue())
+
             # Process button
-            if st.button("🎯 Process Audio", key="process_upload_btn"):
-                self._process_audio_file(uploaded_file)
+            if st.button("🎯 Process Audio File", key=f"process_file_{st.session_state.voice_tab_key}"):
+                self.process_audio_callback(uploaded_file.getvalue(), uploaded_file.name)
 
-        elif st.session_state.voice_processing:
-            st.info("🔄 Processing audio... Please wait.")
-
-        # Tips section
-        with st.expander("💡 Tips for Better Voice Recognition"):
-            st.markdown(f"""
-            **For best results:**
-            - 🎯 Speak clearly and at normal pace
-            - 🔇 Record in a quiet environment
-            - ⏱️ Keep recordings under 2 minutes
-            - 🎤 Use good quality microphone if possible
-
-            **Supported formats:** {', '.join(self.settings.get_allowed_audio_formats())}
-
-            **File size limit:** {self.settings.max_file_size // (1024 * 1024)}MB
-
-            **Example commands:**
-            - "What's the weather in Islamabad?"
-            - "Generate an image of a sunset"
-            - "Tell me about cryptocurrency prices"
+    def _render_realtime_recording_tab(self):
+        """Render real-time recording tab with device selection."""
+        if not AUDIO_LIBS_AVAILABLE:
+            st.error("❌ Real-time recording not available")
+            st.markdown("""
+            Install required dependencies:
+            ```bash
+            pip install sounddevice numpy
+            ```
             """)
+            return
 
-    def _process_audio_file(self, uploaded_file):
-        """Process uploaded audio file with proper state management."""
+        # Show available devices
         try:
-            # Set processing state
-            st.session_state.voice_processing = True
+            devices = sd.query_devices()
+            input_devices = [i for i, d in enumerate(devices) if d['max_input_channels'] > 0]
 
-            with st.spinner("Processing audio..."):
-                # Read audio file
-                audio_bytes = uploaded_file.read()
+            if not input_devices:
+                st.error("❌ No input audio devices found")
+                return
 
-                # Process with backend
-                response = self.upload_audio(audio_bytes, uploaded_file.name)
+            st.success(f"✅ Found {len(input_devices)} input devices")
 
-            # Reset processing state
-            st.session_state.voice_processing = False
+            # Device selection (optional)
+            with st.expander("🎛️ Device Selection (Optional)"):
+                st.markdown(
+                    "The app will automatically use the best available device, but you can choose a specific one:")
+                self._render_device_selector()
 
-            if response and response.get("success"):
-                transcription = response.get("transcription", "")
-
-                # Add transcription as user message
-                if transcription:
-                    st.session_state.messages.append({
-                        "role": "user",
-                        "content": f"🎤 {transcription}",
-                        "timestamp": time.time(),
-                        "input_type": "audio"
-                    })
-
-                # Add assistant response
-                assistant_message = {
-                    "role": "assistant",
-                    "content": response["response"],
-                    "timestamp": time.time(),
-                    "intent": response.get("intent"),
-                    "confidence": response.get("confidence"),
-                    "response_type": response.get("response_type"),
-                    "data": response.get("data")
-                }
-
-                st.session_state.messages.append(assistant_message)
-
-                # Show success and results
-                st.success(f"**Transcription:** {transcription}")
-                st.write(f"**SONA's Response:** {response['response']}")
-
-                # Show additional data
-                if response.get("data"):
-                    self._render_message_data(response["data"], response.get("response_type"))
-
-                # Store processed file info to prevent reprocessing
-                st.session_state.last_processed_file = f"{uploaded_file.name}_{len(uploaded_file.getvalue())}"
-
-                # Auto-reset after successful processing
-                st.session_state.voice_file_key += 1
-
-                # Small delay and rerun to show results and reset interface
-                time.sleep(1)
-                st.rerun()
-
-            else:
-                st.session_state.voice_processing = False
-                error_msg = response.get("error", "Unknown error") if response else "No response from server"
-                st.error(f"Failed to process audio: {error_msg}")
+            # Audio system info
+            with st.expander("🔧 Audio System Info"):
+                st.markdown("**Your available devices:**")
+                st.markdown("- **MacBook Pro Microphone** (Recommended - Good audio level)")
+                st.markdown("- **iPhone 16 Pro Max Microphone** (Good - Moderate audio level)")
+                st.markdown("- **WH-1000XM5** (Backup - Low audio level)")
+                st.markdown("- **Microsoft Teams Audio** (Backup - Low audio level)")
 
         except Exception as e:
-            st.session_state.voice_processing = False
-            st.error(f"Audio processing error: {str(e)}")
+            st.error(f"❌ Audio system error: {str(e)}")
+            return
+
+        # Recording interface
+        st.markdown("**Quick Recording Options:**")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            if st.button("🔴 Record 5s", key=f"record_5s_{st.session_state.voice_tab_key}"):
+                self._quick_record(5)
+
+        with col2:
+            if st.button("🔴 Record 10s", key=f"record_10s_{st.session_state.voice_tab_key}"):
+                self._quick_record(10)
+
+        with col3:
+            if st.button("🔴 Record 15s", key=f"record_15s_{st.session_state.voice_tab_key}"):
+                self._quick_record(15)
+
+        # Custom duration
+        st.markdown("**Custom Duration:**")
+
+        col1, col2 = st.columns([3, 1])
+
+        with col1:
+            duration = st.slider(
+                "Duration (seconds)",
+                min_value=1,
+                max_value=30,
+                value=10,
+                key=f"duration_slider_{st.session_state.voice_tab_key}"
+            )
+
+        with col2:
+            if st.button(f"🔴 Record", key=f"record_custom_{st.session_state.voice_tab_key}"):
+                self._quick_record(duration)
+
+        # Tips specific to your setup
+        with st.expander("💡 Tips for Your Setup"):
+            st.markdown("""
+            **Based on your audio diagnostic:**
+
+            **Best Options:**
+            - 🥇 **MacBook Pro Microphone** - Highest audio level detected
+            - 🥈 **iPhone 16 Pro Max Microphone** - Good audio level
+
+            **For best results:**
+            - Use MacBook Pro's built-in microphone for clearest audio
+            - If using iPhone, keep it close (6-8 inches away)
+            - Speak clearly and at normal volume
+            - Record in a quiet environment
+
+            **Troubleshooting:**
+            - If recording fails, try refreshing the page
+            - Check microphone permissions in browser settings
+            - The app will automatically try different devices if one fails
+            """)
+
+    def _quick_record(self, duration: float):
+        """Perform quick recording with your specific device setup."""
+        if not AUDIO_LIBS_AVAILABLE:
+            st.error("❌ Audio recording libraries not available")
+            return
+
+        try:
+            # Countdown
+            countdown_placeholder = st.empty()
+            progress_bar = st.progress(0.0)
+
+            # Based on your diagnostic, prioritize devices with good audio levels
+            # Device 3: MacBook Pro Microphone (0.0697 level) - Best
+            # Device 2: iPhone 16 Pro Max Microphone (0.0327 level) - Good
+            # Device 0: WH-1000XM5 (0.0000 level) - Backup
+            # Device 5: Microsoft Teams Audio (0.0000 level) - Backup
+
+            preferred_devices = [
+                (3, "MacBook Pro Microphone"),
+                (2, "iPhone 16 Pro Max Microphone"),
+                (0, "WH-1000XM5"),
+                (5, "Microsoft Teams Audio")
+            ]
+
+            # Countdown
+            for i in range(3, 0, -1):
+                countdown_placeholder.warning(f"🔴 Recording starts in {i}...")
+                time.sleep(1)
+
+            countdown_placeholder.info("🔴 Recording now! Speak clearly...")
+
+            sample_rate = self.settings.audio_sample_rate
+            recording = None
+            successful_device = None
+
+            # Try devices in order of preference
+            for device_id, device_name in preferred_devices:
+                try:
+                    countdown_placeholder.info(f"🔴 Using {device_name}...")
+
+                    recording = sd.rec(
+                        int(duration * sample_rate),
+                        samplerate=sample_rate,
+                        channels=1,
+                        dtype=np.float32,
+                        device=device_id
+                    )
+
+                    # Show progress with device info
+                    start_time = time.time()
+                    while not recording.flags.writeable:
+                        elapsed = time.time() - start_time
+                        progress = min(elapsed / duration, 1.0)
+                        progress_bar.progress(progress)
+
+                        # Update status during recording
+                        remaining = duration - elapsed
+                        if remaining > 0:
+                            countdown_placeholder.info(f"🔴 Recording with {device_name}... {remaining:.1f}s left")
+
+                        time.sleep(0.1)
+
+                    sd.wait()
+                    successful_device = device_name
+                    break
+
+                except Exception as e:
+                    print(f"Device {device_id} ({device_name}) failed: {e}")
+                    continue
+
+            progress_bar.progress(1.0)
+
+            if recording is None:
+                countdown_placeholder.error("❌ All recording devices failed")
+                st.error("Please check your microphone settings and try again")
+                return
+
+            # Check if we actually got audio
+            max_amplitude = np.max(np.abs(recording))
+            rms_level = np.sqrt(np.mean(recording ** 2))
+
+            if max_amplitude < 0.001:
+                countdown_placeholder.warning(f"⚠️ Very low audio detected with {successful_device}")
+                st.warning("Audio level is very low. Try speaking louder or closer to the microphone.")
+            else:
+                countdown_placeholder.success(
+                    f"✅ Recording completed using {successful_device}! (Level: {max_amplitude:.3f})")
+
+            # Convert to WAV format
+            wav_data = self._numpy_to_wav(recording, sample_rate)
+
+            if wav_data:
+                # Show audio player
+                st.audio(wav_data, format="audio/wav")
+
+                # Show audio quality info
+                with st.expander("📊 Recording Info"):
+                    st.write(f"**Device used:** {successful_device}")
+                    st.write(f"**Duration:** {duration} seconds")
+                    st.write(f"**Max amplitude:** {max_amplitude:.4f}")
+                    st.write(f"**RMS level:** {rms_level:.4f}")
+                    st.write(f"**Sample rate:** {sample_rate} Hz")
+                    st.write(f"**File size:** {len(wav_data)} bytes")
+
+                # Process the recording
+                filename = f"recording_{int(time.time())}.wav"
+                self.process_audio_callback(wav_data, filename)
+            else:
+                st.error("❌ Failed to process recording")
+
+        except Exception as e:
+            st.error(f"❌ Recording failed: {str(e)}")
+            print(f"Recording error details: {e}")
+
+
+    # ALSO ADD this method to help users choose their preferred device:
+    def _render_device_selector(self):
+        """Render device selection interface."""
+        if not AUDIO_LIBS_AVAILABLE:
+            return
+
+        try:
+            devices = sd.query_devices()
+            input_devices = [(i, d) for i, d in enumerate(devices) if d['max_input_channels'] > 0]
+
+            if input_devices:
+                st.markdown("**🎤 Available Microphones:**")
+
+                device_options = []
+                device_mapping = {}
+
+                for device_id, device in input_devices:
+                    device_name = device['name']
+                    device_options.append(f"[{device_id}] {device_name}")
+                    device_mapping[f"[{device_id}] {device_name}"] = device_id
+
+                # Default to MacBook Pro Microphone if available, otherwise first device
+                default_option = "[3] MacBook Pro Microphone" if "[3] MacBook Pro Microphone" in device_options else \
+                device_options[0]
+
+                selected_device = st.selectbox(
+                    "Choose your preferred microphone:",
+                    device_options,
+                    index=device_options.index(default_option) if default_option in device_options else 0,
+                    key="device_selector"
+                )
+
+                selected_device_id = device_mapping[selected_device]
+
+                # Store selected device in session state
+                st.session_state.preferred_device_id = selected_device_id
+                st.session_state.preferred_device_name = selected_device.split('] ')[1]
+
+                # Show device info
+                selected_device_info = devices[selected_device_id]
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.info(f"**Channels:** {selected_device_info['max_input_channels']}")
+                with col2:
+                    st.info(f"**Sample Rate:** {selected_device_info['default_samplerate']} Hz")
+
+                return selected_device_id
+
+        except Exception as e:
+            st.error(f"Error listing devices: {e}")
+            return None
+
+    def _numpy_to_wav(self, audio_array: np.ndarray, sample_rate: int) -> bytes:
+        """Convert numpy array to WAV bytes."""
+        try:
+            import wave
+            import io
+
+            # Ensure mono
+            if len(audio_array.shape) > 1:
+                audio_array = np.mean(audio_array, axis=1)
+
+            # Convert to 16-bit PCM
+            audio_int16 = (audio_array * 32767).astype(np.int16)
+
+            # Create WAV in memory
+            wav_io = io.BytesIO()
+
+            with wave.open(wav_io, 'wb') as wav_file:
+                wav_file.setnchannels(1)  # Mono
+                wav_file.setsampwidth(2)  # 16-bit
+                wav_file.setframerate(sample_rate)
+                wav_file.writeframes(audio_int16.tobytes())
+
+            wav_io.seek(0)
+            return wav_io.read()
+
+        except Exception as e:
+            st.error(f"Failed to convert audio: {e}")
+            return b""
 
     def _render_message_data(self, data: Any, response_type: str):
-        """Render additional message data based on response type with smaller images."""
+        """Render additional message data."""
         if response_type == "image" and data:
             if data.get("success") and data.get("image_data"):
                 try:
-                    # Decode base64 image data if present
                     image_data = data["image_data"]
                     if isinstance(image_data, str):
                         image_bytes = base64.b64decode(image_data)
                         image = Image.open(io.BytesIO(image_bytes))
-
-                        # Display image with fixed width of 400px
                         st.image(image, caption="Generated Image Description", width=400)
 
-                        # Show enhanced description if available
                         if "metadata" in data and "detailed_description" in data["metadata"]:
                             enhanced_desc = data["metadata"]["detailed_description"]
                             if enhanced_desc and len(enhanced_desc) > 50:
@@ -475,17 +711,13 @@ class SONAStreamlitApp:
 
                 except Exception as e:
                     st.error(f"Could not display image: {e}")
-            elif data.get("image_url"):
-                st.image(data["image_url"], caption="Generated Image", width=400)
             else:
-                st.warning("Image generation failed or no image data available")
+                st.warning("Image generation failed")
 
         elif response_type == "text" and isinstance(data, list):
-            # Web search results
             if data:
                 st.subheader("🔍 Search Results")
-
-                for i, result in enumerate(data[:3], 1):  # Show top 3 results
+                for i, result in enumerate(data[:3], 1):
                     with st.expander(f"{i}. {result.get('title', 'No title')}", expanded=i == 1):
                         st.write(result.get('snippet', 'No description available'))
                         if result.get('url'):
@@ -508,12 +740,6 @@ class SONAStreamlitApp:
             padding: 1rem;
             margin: 0.5rem 0;
             border-radius: 0.5rem;
-        }
-        .user-message {
-            background-color: #e8f4f8;
-        }
-        .assistant-message {
-            background-color: #f0f2f6;
         }
         </style>
         """, unsafe_allow_html=True)
