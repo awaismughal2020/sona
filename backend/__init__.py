@@ -2,9 +2,9 @@
 © 2025 Awais Mughal. All rights reserved.
 Unauthorized commercial use is prohibited.
 
-Backend package for SONA AI Assistant.
+Backend package for SONA AI Assistant with Context Management.
 """
 
-from .app import SONABackend, app
+from .app import SONABackendWithContext, SONABackend, app
 
-__all__ = ["SONABackend", "app"]
+__all__ = ["SONABackendWithContext", "SONABackend", "app"]

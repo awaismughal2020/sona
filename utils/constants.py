@@ -48,6 +48,16 @@ class ResponseType(Enum):
     AUDIO = "audio"
     ERROR = "error"
 
+class ContextType(Enum):
+    """Types of context information."""
+    USER_PREFERENCE = "user_preference"
+    TOPIC = "topic"
+    ENTITY = "entity"
+    TASK = "task"
+    SEARCH_HISTORY = "search_history"
+    IMAGE_HISTORY = "image_history"
+    CONVERSATION_FLOW = "conversation_flow"
+
 
 # SONA Persona Configuration
 SONA_PERSONA = {
