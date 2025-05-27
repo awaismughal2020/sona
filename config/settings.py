@@ -38,7 +38,9 @@ class Settings(BaseSettings):
     # AI Model Configuration
     speech_to_text_model: str = Field(default="whisper", env="SPEECH_TO_TEXT_MODEL")
     intent_detection_model: str = Field(default="openai", env="INTENT_DETECTION_MODEL")
-    image_generation_model: str = Field(default="gemini", env="IMAGE_GENERATION_MODEL")
+    image_generation_service: str = Field(default="dalle", env="IMAGE_GENERATION_SERVICE")
+    image_generation_model: str = Field(default="dalle", env="IMAGE_GENERATION_MODEL")
+    # image_generation_model: str = Field(default="gemini", env="IMAGE_GENERATION_MODEL")
     web_search_model: str = Field(default="serp", env="WEB_SEARCH_MODEL")
 
     # Whisper Configuration

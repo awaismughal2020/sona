@@ -2,8 +2,7 @@
 © 2025 Awais Mughal. All rights reserved.
 Unauthorized commercial use is prohibited.
 
-Base class for image generation services.
-Provides interface for all image generation implementations.
+Updated Image Generation Services with REAL image generation capabilities.
 """
 
 from abc import ABC, abstractmethod
@@ -34,17 +33,19 @@ class ImageGenerationBase(ABC):
     @abstractmethod
     async def generate_image(self, prompt: str, **kwargs) -> Dict[str, Any]:
         """
-        Generate image from text prompt.
+        Generate actual image from text prompt.
 
         Args:
             prompt: Text description for image generation
-            **kwargs: Additional generation parameters
+            **kwargs: Additional generation parameters (size, style, etc.)
 
         Returns:
             Dictionary containing generated image information:
             {
-                "image_url": str,
-                "image_data": bytes,
+                "success": bool,
+                "image_url": str (optional),
+                "image_data": str (base64 encoded image),
+                "mime_type": str,
                 "metadata": dict
             }
         """

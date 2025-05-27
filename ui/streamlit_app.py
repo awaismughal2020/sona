@@ -1099,15 +1099,7 @@ class SONAStreamlitAppWithContext:
         self.render_main_chat()
 
         # Additional panels
-        self.render_context_insights()
-        self.render_conversation_summary()
-        self.render_tips_panel()
-        self.render_session_management()
-        self.render_debug_panel()
-
-        # Footer with version info
-        st.markdown("---")
-        st.caption(f"SONA AI Assistant with Context Management | Session: {st.session_state.session_id[:8]}...")
+       # self.render_context_insights()
 
 
 # Main application entry point

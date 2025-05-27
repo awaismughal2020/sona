@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional, Union, List
 import asyncio
 from loguru import logger
 
+from ai.image_generation import DalleImageService
 from config.settings import get_settings
 from utils.constants import IntentType, ModelType, ERROR_MESSAGES, SONA_PERSONA
 
@@ -47,7 +48,8 @@ class EnhancedAIOrchestrator:
 
             # Image Generation Services
             "image_generation": {
-                ModelType.GEMINI: GeminiImageService()
+                ModelType.GEMINI: GeminiImageService(),
+                ModelType.DALLE: DalleImageService()
             },
 
             # Web Search Services

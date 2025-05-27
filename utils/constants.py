@@ -28,6 +28,7 @@ class ModelType(Enum):
 
     # Image Generation Models
     GEMINI = "gemini"
+    DALLE = "dalle"
 
     # Web Search Models
     SERP = "serp"
